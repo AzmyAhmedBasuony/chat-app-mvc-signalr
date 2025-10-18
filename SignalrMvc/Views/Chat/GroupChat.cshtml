@@ -1,0 +1,447 @@
+@{
+    ViewData["Title"] = "Group Chat";
+}
+
+<style>
+    body {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .chat-container {
+        max-width: 900px;
+        margin: 20px auto;
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        overflow: hidden;
+    }
+
+    .chat-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .chat-header h2 {
+        margin: 0;
+        font-size: 1.5rem;
+        font-weight: 600;
+    }
+
+    .connection-status {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.9rem;
+    }
+
+    .status-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #10b981;
+        animation: pulse 2s infinite;
+    }
+
+    .status-dot.disconnected {
+        background: #ef4444;
+        animation: none;
+    }
+
+    @@keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+
+    .chat-messages {
+        height: 500px;
+        overflow-y: auto;
+        padding: 20px;
+        background: #f8f9fa;
+        scroll-behavior: smooth;
+    }
+
+    .chat-messages::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .chat-messages::-webkit-scrollbar-track {
+        background: #f1f1f1;
+    }
+
+    .chat-messages::-webkit-scrollbar-thumb {
+        background: #667eea;
+        border-radius: 4px;
+    }
+
+    .message {
+        margin-bottom: 15px;
+        animation: slideIn 0.3s ease-out;
+    }
+
+    @@keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .message-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 5px;
+    }
+
+    .message-sender {
+        font-weight: 600;
+        font-size: 0.9rem;
+        color: #667eea;
+    }
+
+    .message-time {
+        font-size: 0.75rem;
+        color: #6c757d;
+    }
+
+    .message-bubble {
+        display: inline-block;
+        max-width: 70%;
+        padding: 12px 16px;
+        border-radius: 18px;
+        word-wrap: break-word;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        background: white;
+        color: #333;
+        border: 1px solid #e5e7eb;
+    }
+
+    .chat-input-container {
+        padding: 20px;
+        background: white;
+        border-top: 1px solid #e5e7eb;
+    }
+
+    .input-group-custom {
+        display: flex;
+        gap: 10px;
+    }
+
+    #messageInput {
+        flex: 1;
+        padding: 12px 20px;
+        border: 2px solid #e5e7eb;
+        border-radius: 25px;
+        font-size: 1rem;
+        transition: border-color 0.3s;
+    }
+
+    #messageInput:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    #sendBtn {
+        padding: 12px 30px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 25px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    #sendBtn:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    }
+
+    #sendBtn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    .welcome-message {
+        text-align: center;
+        padding: 40px 20px;
+        color: #6c757d;
+    }
+
+    .user-badge {
+        display: inline-block;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        text-align: center;
+        line-height: 32px;
+        font-weight: 600;
+        color: white;
+        font-size: 0.9rem;
+        margin-right: 5px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .user-count-badge {
+        background: rgba(255, 255, 255, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        color: white;
+        padding: 8px 15px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 600;
+    }
+
+    .user-count-number {
+        background: rgba(255, 255, 255, 0.3);
+        padding: 2px 10px;
+        border-radius: 12px;
+        font-weight: 700;
+        min-width: 30px;
+        text-align: center;
+    }
+
+    .online-indicator {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #10b981;
+        animation: pulse 2s infinite;
+    }
+</style>
+
+<div class="chat-container">
+    <div class="chat-header">
+        <div>
+            <h2>?? Group Chat Room</h2>
+            <small id="currentUser"></small>
+        </div>
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <div class="user-count-badge" id="userCountBadge" title="Active users">
+                <span class="online-indicator"></span>
+                <span>Users:</span>
+                <span class="user-count-number" id="userCount">0</span>
+            </div>
+            <div class="connection-status">
+                <span class="status-dot disconnected" id="statusDot"></span>
+                <span id="statusText">Connecting...</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="chat-messages" id="chatMessages">
+        <div class="welcome-message">
+            <div style="font-size: 3rem; margin-bottom: 15px;">??</div>
+            <h4>Welcome to the Group Chat Room!</h4>
+            <p>Start chatting with everyone in real-time</p>
+        </div>
+    </div>
+
+    <div class="chat-input-container">
+        <div class="input-group-custom">
+            <input type="text" id="messageInput" placeholder="Type your message..." />
+            <button id="sendBtn">Send</button>
+        </div>
+    </div>
+</div>
+
+@section Scripts{
+    <script src="~/microsoft/signalr/dist/browser/signalr.js"></script>
+    <script>
+        let currentUserName = "";
+        let connection = null;
+
+        // Get user name
+        function getUserName() {
+            let name = localStorage.getItem('groupChatUsername');
+            if (!name) {
+                name = prompt("Please enter your name:");
+                while (!name || name.trim() === "") {
+                    name = prompt("Name cannot be empty. Please enter your name:");
+                }
+                localStorage.setItem('groupChatUsername', name.trim());
+            }
+            return name.trim();
+        }
+
+        // Get user initials for avatar
+        function getInitials(name) {
+            return name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
+        }
+
+        // Format time
+        function formatTime() {
+            const now = new Date();
+            return now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+        }
+
+        // Add message to chat
+        function addMessage(senderName, message) {
+            const messagesContainer = document.getElementById('chatMessages');
+            
+            // Remove welcome message if exists
+            const welcomeMsg = messagesContainer.querySelector('.welcome-message');
+            if (welcomeMsg) {
+                welcomeMsg.remove();
+            }
+
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message';
+            
+            const initials = getInitials(senderName);
+            
+            messageDiv.innerHTML = `
+                <div class="message-header">
+                    <span class="user-badge">${initials}</span>
+                    <span class="message-sender">${escapeHtml(senderName)}</span>
+                    <span class="message-time">${formatTime()}</span>
+                </div>
+                <div class="message-bubble">${escapeHtml(message)}</div>
+            `;
+            
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        // Escape HTML to prevent XSS
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Update connection status
+        function updateStatus(connected) {
+            const statusDot = document.getElementById('statusDot');
+            const statusText = document.getElementById('statusText');
+            const messageInput = document.getElementById('messageInput');
+            const sendBtn = document.getElementById('sendBtn');
+
+            if (connected) {
+                statusDot.classList.remove('disconnected');
+                statusText.textContent = 'Connected';
+                messageInput.disabled = false;
+                sendBtn.disabled = false;
+            } else {
+                statusDot.classList.add('disconnected');
+                statusText.textContent = 'Disconnected';
+                messageInput.disabled = true;
+                sendBtn.disabled = true;
+            }
+        }
+
+        // Update user count
+        function updateUserCount(count) {
+            const userCountElement = document.getElementById('userCount');
+            if (userCountElement) {
+                userCountElement.textContent = count;
+            }
+        }
+
+        // Send message
+        function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+            
+            if (message && connection) {
+                connection.invoke("SendMessage", currentUserName, message)
+                    .catch(err => {
+                        console.error('Error sending message:', err);
+                        alert('Failed to send message');
+                    });
+                input.value = '';
+                input.focus();
+            }
+        }
+
+        // Initialize chat
+        async function initializeChat() {
+            currentUserName = getUserName();
+            document.getElementById('currentUser').textContent = `Logged in as: ${currentUserName}`;
+
+            // Create connection (no authentication needed)
+            connection = new signalR.HubConnectionBuilder()
+                .withUrl("/chat")
+                .withAutomaticReconnect()
+                .build();
+
+            // Handle received messages
+            connection.on("NewMessage", function(name, message) {
+                addMessage(name, message);
+            });
+
+            // Handle user count updates
+            connection.on("UpdateUserCount", function(count) {
+                updateUserCount(count);
+            });
+
+            // Handle connection state changes
+            connection.onreconnecting(() => {
+                updateStatus(false);
+                console.log('Reconnecting...');
+            });
+
+            connection.onreconnected(() => {
+                updateStatus(true);
+                console.log('Reconnected!');
+            });
+
+            connection.onclose(() => {
+                updateStatus(false);
+                console.log('Connection closed');
+            });
+
+            // Start connection
+            try {
+                await connection.start();
+                updateStatus(true);
+                console.log('SignalR Connected!');
+                
+                // Load chat history
+                try {
+                    const history = await connection.invoke("GetChatHistory", 50);
+                    if (history && history.length > 0) {
+                        console.log(`Loading ${history.length} messages from history`);
+                        history.forEach(msg => {
+                            addMessage(msg.senderName, msg.message);
+                        });
+                    }
+                } catch (err) {
+                    console.error('Error loading chat history:', err);
+                }
+            } catch (err) {
+                console.error('Error connecting:', err);
+                updateStatus(false);
+                alert('Failed to connect. Retrying...');
+                setTimeout(initializeChat, 5000);
+            }
+        }
+
+        // Event listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeChat();
+
+            const sendBtn = document.getElementById('sendBtn');
+            const messageInput = document.getElementById('messageInput');
+
+            sendBtn.addEventListener('click', sendMessage);
+            
+            messageInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    sendMessage();
+                }
+            });
+        });
+    </script>
+}
